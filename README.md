@@ -48,4 +48,4 @@ If you would like to get involved or learn more about our work, please reach out
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the S-13439-2020
