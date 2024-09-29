@@ -1,0 +1,98 @@
+<?php
+/*
+Plugin Name: Khadem Foundation GiveWP SSLCommerz Gateway
+Description: SSLCommerz payment gateway integration for GiveWP.
+Version: 1.0
+Author: Ripon Khadem
+*/
+
+// Hook into GiveWP
+add_filter('give_payment_gateways', 'add_sslcommerz_gateway');
+
+function add_sslcommerz_gateway($gateways) {
+    $gateways['sslcommerz'] = array(
+        'admin_label'    => __('SSLCommerz', 'give'),
+        'checkout_label' => __('SSLCommerz', 'give'),
+    );
+    return $gateways;
+}
+function process_sslcommerz_payment($donation_data) {
+    $sslcommerz_args = array(
+        'store_id' => 'khade66f018952f4b2',
+        'store_passwd' => 'khade66f018952f4b2@ssl',
+        'total_amount' => $donation_data['price'],
+        'currency' => 'BDT', // or USD depending on your needs
+        'tran_id' => $donation_data['donation_id'],
+        'success_url' => give_get_success_page_uri(),
+        'fail_url' => give_get_failed_transaction_uri(),
+        'cancel_url' => give_get_cancel_page_uri(),
+    );
+
+    $response = wp_remote_post('https://sandbox.sslcommerz.com/gwprocess/v3/api.php', array(
+        'method' => 'POST',
+        'body' => $sslcommerz_args,
+        'timeout' => 45,
+        'sslverify' => false,
+    ));
+
+    if (is_wp_error($response)) {
+        give_record_gateway_error('SSLCommerz Error', $response->get_error_message());
+        give_send_back_to_checkout('?payment-mode=sslcommerz');
+    } else {
+        // Handle success or failure
+        $response_body = wp_remote_retrieve_body($response);
+        $result = json_decode($response_body, true);
+
+        if ($result['status'] == 'SUCCESS') {
+            // Redirect to SSLCommerz payment page
+            wp_redirect($result['GatewayPageURL']);
+            exit;
+        } else {
+            // Handle failed payment initialization
+            give_set_error('sslcommerz_error', 'There was an issue connecting to SSLCommerz.');
+            give_send_back_to_checkout('?payment-mode=sslcommerz');
+        }
+    }
+}
+
+add_filter('give_payment_gateways', 'add_sslcommerz_gateway');
+
+function add_sslcommerz_gateway($gateways) {
+    $gateways['sslcommerz'] = array(
+        'admin_label' => __('SSLCommerz', 'give'),
+        'checkout_label' => __('SSLCommerz', 'give'),
+    );
+    return $gateways;
+}
+
+add_filter('give_get_settings_gateways', 'add_sslcommerz_gateway_settings');
+
+function add_sslcommerz_gateway_settings($settings) {
+    $sslcommerz_settings = array(
+        array(
+            'name' => __('SSLCommerz Settings', 'give'),
+            'desc' => __('Configure the SSLCommerz gateway settings.', 'give'),
+            'type' => 'title',
+            'id' => 'give_title_sslcommerz',
+        ),
+        array(
+            'name' => __('Store ID', 'give'),
+            'desc' => __('Enter your SSLCommerz Store ID.', 'give'),
+            'id' => 'give_sslcommerz_store_id',
+            'type' => 'text',
+            'default' => '',
+        ),
+        array(
+            'name' => __('Store Password', 'give'),
+            'desc' => __('Enter your SSLCommerz Store Password.', 'give'),
+            'id' => 'give_sslcommerz_store_passwd',
+            'type' => 'text',
+            'default' => '',
+        ),
+        array(
+            'type' => 'sectionend',
+            'id' => 'give_title_sslcommerz',
+        ),
+    );
+    return array_merge($settings, $sslcommerz_settings);
+}
