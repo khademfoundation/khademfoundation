@@ -1,0 +1,131 @@
+<?php
+/**
+ * Plugin Name:Khadem Foundation Donation Plugin
+ * Description: A simple donation and fundraising platform.
+ * Version: 1.0
+ * Author: Ripon Khadem
+ */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Enqueue CSS and JS files
+function donation_plugin_enqueue_scripts() {
+    wp_enqueue_style('donation-plugin-css', plugin_dir_url(__FILE__) . 'css/style.css');
+    wp_enqueue_script('donation-plugin-js', plugin_dir_url(__FILE__) . 'js/script.js', array('jquery'), null, true);
+}
+add_action('wp_enqueue_scripts', 'donation_plugin_enqueue_scripts');
+
+// Create a shortcode to display the donation form
+function donation_form_shortcode() {
+    ob_start();
+    ?>
+    <div class="donation-form">
+        <h2>Make a Donation</h2>
+        <form id="donationForm" method="POST">
+            <label for="donor_name">Name:</label>
+            <input type="text" id="donor_name" name="donor_name" required>
+            <label for="donation_amount">Amount:</label>
+            <input type="number" id="donation_amount" name="donation_amount" required min="1">
+            <button type="submit">Donate</button>
+        </form>
+        <div id="donationResponse"></div>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('donation_form', 'donation_form_shortcode');
+
+// Handle form submission
+function handle_donation_submission() {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['donor_name']) && isset($_POST['donation_amount'])) {
+        // Sanitize user input
+        $name = sanitize_text_field($_POST['donor_name']);
+        $amount = floatval($_POST['donation_amount']);
+
+        // Here you would typically process the payment, store the donation in the database, etc.
+
+        // Return a response
+        wp_send_json_success("Thank you, $name, for your donation of $amount!");
+    }
+}
+add_action('wp_ajax_handle_donation', 'handle_donation_submission');
+add_action('wp_ajax_nopriv_handle_donation', 'handle_donation_submission');
+
+?>
+
+//CSS
+
+/* style.css */
+.donation-form {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.donation-form h2 {
+    text-align: center;
+}
+
+.donation-form label {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.donation-form input[type="text"],
+.donation-form input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.donation-form button {
+    width: 100%;
+    padding: 10px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.donation-form button:hover {
+    background-color: #218838;
+}
+
+// Javasciprt// //JS
+
+// script.js
+jQuery(document).ready(function ($) {
+    $('#donationForm').on('submit', function (e) {
+        e.preventDefault();
+
+        var formData = $(this).serialize();
+
+        $.ajax({
+            type: 'POST',
+            url: ajaxurl, // WordPress AJAX URL
+            data: formData + '&action=handle_donation',
+            success: function (response) {
+                if (response.success) {
+                    $('#donationResponse').html('<div class="success">' + response.data + '</div>');
+                    $('#donationForm')[0].reset(); // Reset form fields
+                } else {
+                    $('#donationResponse').html('<div class="error">Error processing donation.</div>');
+                }
+            },
+            error: function () {
+                $('#donationResponse').html('<div class="error">Error processing donation.</div>');
+            }
+        });
+    });
+});
+
+
